@@ -35,7 +35,15 @@ bool display_init(void) {
     return true;
 }
 
-bool display_render(unsigned char r, unsigned char g, unsigned char b) {
+static unsigned char clip_value(double d) {
+    int t = d + 0.5;
+
+    if (t < 0) return 0;
+    if (t > 255) return 255;
+    return t;
+}
+
+bool display_render(double *r, double *g, double *b) {
     static SDL_Rect scroll_src = { 0, 0, width, height - 1 };
     static SDL_Rect scroll_dest = { 0, 1, width, height - 1 };
     int i;
@@ -45,9 +53,9 @@ bool display_render(unsigned char r, unsigned char g, unsigned char b) {
     SDL_LockSurface(surface);
     p = (unsigned char *)(surface->pixels);
     for (i = 0; i < width; i++) {
-        *(p++) = b;
-        *(p++) = g;
-        *(p++) = r;
+        *(p++) = clip_value(b[i]);
+        *(p++) = clip_value(g[i]);
+        *(p++) = clip_value(r[i]);
     }
     SDL_UnlockSurface(surface);
     SDL_UpdateRect(surface, 0, 0, width, height);

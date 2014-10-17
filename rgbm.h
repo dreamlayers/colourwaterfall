@@ -26,7 +26,8 @@ extern "C" {
 /* Here int really means bool, but some compilers can't handle bool */
 int rgbm_init(void);
 void rgbm_shutdown(void);
-int rgbm_render(const RGBM_BINTYPE bins[RGBM_NUMBINS]);
+int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
+                const RGBM_BINTYPE right_bins[RGBM_NUMBINS]);
 
 #ifdef __cplusplus
 }

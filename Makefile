@@ -2,7 +2,7 @@ PLATFORM := Windows
 CC := i686-w64-mingw32-gcc
 #include ../../build/Makefile.config
 
-CFLAGS := $(CFLAGS) $(shell sdl-config --cflags)
+CFLAGS := $(CFLAGS) -Wall $(shell sdl-config --cflags)
 LIBS := $(LIBS) $(shell sdl-config --libs)
 SRCS := rgbm.c sdl_display.c
 

@@ -31,7 +31,8 @@ static void quit(struct MODULETYPE *this_mod) {
 
 static int render(struct winampVisModule *this_mod) {
     int noerror;
-    noerror = rgbm_render(this_mod->spectrumData[0]);
+    noerror = rgbm_render(this_mod->spectrumData[0], 
+                          this_mod->spectrumData[1]);
     return noerror ? 0 : 1;
 }
 
@@ -46,7 +47,7 @@ static winampVisModule mod = {
     0,      // nCh
     25,     // latencyMS
     25,     // delayMS
-    1,      // spectrumNch
+    2,      // spectrumNch
     0,      // waveformNch
     { { 0, 0 }, }, // spectrumData
     { { 0, 0 }, }, // waveformData

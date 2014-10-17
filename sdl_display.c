@@ -6,7 +6,6 @@
 
 #define width 640
 #define height 480
-#define new_width 1
 
 static void sdlError(const char *str)
 {
@@ -36,16 +35,28 @@ bool display_init(void) {
     return true;
 }
 
-bool display_render(int r, int g, int b) {
-    static SDL_Rect scroll_src = { 1, 0, width - new_width, height };
-    static SDL_Rect scroll_dest = { 0, 0, width - new_width, height };
-    static SDL_Rect new_data = { width - new_width, 0, new_width, height };
+bool display_render(unsigned char r, unsigned char g, unsigned char b) {
+    static SDL_Rect scroll_src = { 0, 0, width, height - 1 };
+    static SDL_Rect scroll_dest = { 0, 1, width, height - 1 };
+    int i;
+    unsigned char *p;
+
     SDL_BlitSurface(surface, &scroll_src, surface, &scroll_dest);
     SDL_LockSurface(surface);
-    SDL_FillRect(surface, &new_data, SDL_MapRGB(surface->format, r, g, b));
+    p = (unsigned char *)(surface->pixels);
+    for (i = 0; i < width; i++) {
+        *(p++) = b;
+        *(p++) = g;
+        *(p++) = r;
+    }
     SDL_UnlockSurface(surface);
     SDL_UpdateRect(surface, 0, 0, width, height);
     return true;
+}
+
+unsigned int display_width(void)
+{
+    return width;
 }
 
 bool display_pollquit(void) {

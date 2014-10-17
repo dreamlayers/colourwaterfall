@@ -1,0 +1,237 @@
+/* Shared visualization plugin code for the RGB lamp. */
+/* Copyright 2013 Boris Gjenero. Released under the MIT license. */
+
+/* Define to output averaged per-bin sums for calibration */
+/* #define RGBM_LOGGING */
+
+#include <stdbool.h>
+#include <math.h>
+#include "rgbm.h"
+#ifdef RGBM_LOGGING
+#include <stdio.h>
+#endif
+
+#if defined(RGBM_AUDACIOUS)
+
+#define RGBPORT "/dev/ttyUSB0"
+/* Calibrated in Audacious 3.4 in Ubuntu 13.10 */
+/* Frequency of bin is (i+1)*44100/512 (array starts with i=0).
+ * Value corresponds to amplitude (not power or dB).
+ */
+
+/* Moving average size when value is increasing */
+#define RGBM_AVGUP 5
+/* Moving average size when value is decreasing */
+#define RGBM_AVGDN 15
+
+/* Colour scaling to balance red and blue with green */
+#define RGBM_REDSCALE 2.40719835270744
+#define RGBM_BLUESCALE 1.60948950058501
+
+/* Overall scaling to adapt output to values needed by librgblamp */
+#define RGBM_SCALE (12000.0)
+#define RGBM_LIMIT 4095
+
+/* Table for bin weights for summing bin powers (amplitued squared) to green.
+ * Below RGBM_PIVOTBIN, red + green = 1.0. At and above, red + blue = 1.0.
+ */
+#include "greentab_audacious.h"
+
+/* Table for adjusting bin amplitudes using equal loudness contour. */
+#define HAVE_FREQ_ADJ
+static const double freq_adj[RGBM_USEBINS] = {
+#include "freqadj_audacious.h"
+};
+
+#elif defined(RGBM_WINAMP)
+
+#define RGBPORT "COM8"
+
+/* Calibrated in Winamp v5.666 Build 3512 (x86)
+ * Frequency of bin roughly corresponds to (i - 1) * 44100 / 1024
+ * This doesn't behave like a good FFT. Increased amplitude causes
+ * peak to broaden more than it grows. I don't know the mathematical
+ * connection between the signal and bins.
+ */
+
+/* Moving average size when value is increasing */
+#define RGBM_AVGUP 7
+/* Moving average size when value is decreasing */
+#define RGBM_AVGDN 20
+
+/* Colour scaling to balance red and blue with green.
+ * Calibrated using pink noise, after setting above parameters.
+ */
+#define RGBM_REDSCALE 2.25818534475793
+#define RGBM_BLUESCALE 1.337960735802697
+
+/* Overall scaling to adapt output to values needed by librgblamp */
+#define RGBM_SCALE (3.5)
+#define RGBM_LIMIT 4095
+
+#include "greentab_winamp.h"
+
+#else
+#error Need to set define for type of music player.
+#endif
+
+/*
+ * Static global variables
+ */
+
+static double binavg[3];
+/* Set after successful PWM write, and enables rgb_matchpwm afterwards */
+static int wrotepwm;
+
+#ifdef RGBM_LOGGING
+static double testsum[RGBM_USEBINS];
+static unsigned int testctr;
+FILE *testlog = NULL;
+static double avgavg[3];
+#define RGBM_TESTAVGSIZE 1000
+#endif
+
+/*
+ * Internal routines
+ */
+
+static void rgbm_sumbins(const RGBM_BINTYPE bins[RGBM_NUMBINS],
+                         double sums[3]){
+    double greensum = 0;
+    int rgb, i = 0, limit = RGBM_PIVOTBIN;
+    /* First, sum other to red before pivot.
+     * Then sum other to blue from pivot to end
+     */
+    for (rgb = 0; rgb < 3; rgb += 2) {
+        double othersum = 0;
+        for (; i < limit; i++) {
+            double green, bin = bins[i];
+#ifdef HAVE_FREQ_ADJ
+            bin *= freq_adj[i];
+#endif
+            bin *= bin;
+            green = green_tab[i] * bin;
+            greensum += green;
+            othersum += bin - green;
+        }
+        sums[rgb] = sqrt(othersum);
+        limit = RGBM_USEBINS;
+    }
+    sums[1] = sqrt(greensum);
+} /* rgbm_sumbins */
+
+static void rgbm_avgsums(const double sums[3],
+                         double avg[3],
+                         double scale,
+                         double bound) {
+    int i = 0;
+    for (i = 0; i < 3; i++) {
+        double avgsize, sum;
+
+        sum = (double)sums[i] * scale;
+
+        if (sum > avg[i]) {
+            avgsize = RGBM_AVGUP;
+        } else {
+            avgsize = RGBM_AVGDN;
+        }
+
+        avg[i] = ((avgsize - 1.0) * avg[i] + sum) / avgsize;
+        if (avg[i] > bound) avg[i] = bound;
+    } /* for i */
+} /* rgbm_avgsums */
+
+#ifdef RGBM_LOGGING
+static void rgbm_testsum(const RGBM_BINTYPE bins[RGBM_NUMBINS]) {
+    int i;
+
+    if (testlog == NULL) return;
+
+    for (i = 0; i < RGBM_USEBINS; i++) {
+        double bin = bins[i];
+#ifdef HAVE_FREQ_ADJ
+        bin *= freq_adj[i];
+#endif
+        testsum[i] = (testsum[i] * (RGBM_TESTAVGSIZE - 1) + bin)
+                     / RGBM_TESTAVGSIZE;
+    }
+
+    if (testctr++ >= RGBM_TESTAVGSIZE) {
+        testctr = 0;
+        for (i = 0; i < RGBM_USEBINS; i++) {
+            fprintf(testlog, "%i:%f\n", i, testsum[i]);
+        }
+    }
+} /* RGBM_LOGGING */
+#endif /* RGBM_LOGGING */
+
+/*
+ * Interface routines
+ */
+
+int rgbm_init(void) {
+    int i;
+
+    if (!display_init())
+        return false;
+
+    for (i = 0; i < 3; i++) binavg[i] = 0.0;
+#ifdef RGBM_LOGGING
+    for (i = 0; i < RGBM_USEBINS; i++) testsum[i] = 0.0;
+    testlog = fopen("rgbm.log", "w");
+    testctr = 0;
+#endif
+    wrotepwm = 0;
+    return true;
+}
+
+void rgbm_shutdown(void) {
+    display_quit();
+#ifdef RGBM_LOGGING
+    if (testlog != NULL) fclose(testlog);
+#endif
+}
+
+static int rgb_pwm2srgb(double n) {
+    double r = n / 4095.0;
+    int t;
+    if (r <= 0.0031308) {
+        r = 12.92 * r;
+    } else {
+        r = 1.055 * pow(r, 1/2.4) - 0.055;
+    }
+    t = r * 255.0 + 0.5;
+    if (t > 255) t = 255;
+    else if (t < 0) t = 0;
+    return t;
+}
+
+int rgbm_render(const RGBM_BINTYPE bins[RGBM_NUMBINS]) {
+    double sums[3];
+    int res;
+
+    rgbm_sumbins(bins, sums);
+    sums[0] *= RGBM_REDSCALE;
+    sums[2] *= RGBM_BLUESCALE;
+    rgbm_avgsums(sums, binavg, RGBM_SCALE, RGBM_LIMIT);
+
+#ifdef RGBM_LOGGING
+    for (res = 0; res < 3; res++) {
+        avgavg[res] = (avgavg[res] * (RGBM_TESTAVGSIZE-1) + binavg[res])
+                      / RGBM_TESTAVGSIZE;
+    }
+    if (testlog != NULL) {
+        if (testctr == RGBM_TESTAVGSIZE-1) {
+            fprintf(testlog, "%9f; %9f; %9f\n", avgavg[0], avgavg[1], avgavg[2]);
+        }
+        rgbm_testsum(bins);
+        fprintf(testlog, "%9f, %9f, %9f\n", binavg[0], binavg[1], binavg[2]);
+    }
+#endif
+    //display_render((int)binavg[0] >> 4 , (int)binavg[1] >> 4, (int)binavg[2] >> 4);
+    display_render(rgb_pwm2srgb(binavg[0]), rgb_pwm2srgb(binavg[1]),
+                   rgb_pwm2srgb(binavg[2]));
+    return !display_pollquit();
+//    res = rgb_pwm(binavg[0], binavg[1], binavg[2]);
+ //   return res;
+} /* rgbm_render */

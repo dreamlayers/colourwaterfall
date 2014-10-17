@@ -218,6 +218,52 @@ static int rgb_pwm2srgb(double n) {
     return t;
 }
 
+static void sqrt_stripe(double **stripe, unsigned int width) {
+    int i, j;
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < width; j++) {
+            stripe[i][j] = sqrt(stripe[i][j]) * 2;
+        }
+    }
+}
+
+#if 0
+static void peakify_stripe(double **stripe, unsigned int width) {
+    int i, j;
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < width; j++) {
+            double t = stripe[i][j];
+            if (t > 255.0) {
+                stripe[i][j] = 255.0;
+                t -= 255.0;
+                t = t / 16;
+                if (j > 0) stripe[i][j-1] += t;
+                if (j > 1) stripe[i][j-2] += t / 16;
+                if (j < width) stripe[i][j+1] += t;
+                if (j < width-1) stripe[i][j+2] += t / 16;
+            }
+        }
+    }
+}
+#endif
+
+static void peakify_stripe(double **stripe, unsigned int width) {
+    int i;
+    for (i = 0; i < width; i++) {
+        double max_col = stripe[0][i];
+        if (stripe[1][i] > max_col) max_col = stripe[1][i];
+        if (stripe[2][i] > max_col) max_col = stripe[2][i];
+
+        if (max_col > 255.0) {
+            max_col = max_col / 255.0;
+            stripe[0][i] /= max_col;
+            stripe[1][i] /= max_col;
+            stripe[2][i] /= max_col;
+        }
+    }
+}
+
+
 static void zero_stripe(double **stripe, unsigned int width) {
     int i, j;
     for (i = 0; i < 3; i++) {
@@ -262,7 +308,8 @@ int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
 
     zero_stripe(stripe, width);
     sum_to_stripe(left_bins, right_bins, stripe, width);
-
+    sqrt_stripe(stripe, width);
+    peakify_stripe(stripe, width);
 #if 0
     rgbm_sumbins(bins, sums);
     sums[0] *= RGBM_REDSCALE;

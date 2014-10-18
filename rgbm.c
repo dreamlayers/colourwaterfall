@@ -299,21 +299,16 @@ static void peakify_stripe(double **stripe, unsigned int width) {
         /* Only energy from current pixel is allowed to propagate left */
         goleft = bound_pixel(stripe, i, reml);
 
-        /* Add energy that was propagating right,
-         * and only propagate remainder to the right */
         for (j = 0; j < 3; j++) {
-            stripe[j][i] += remr[j];
+            /* Half of overflow energy propagates in each direction. */
+            reml[j] /= 2.0;
+            /* Add energy that was previously propagating right and
+             * and energy from current pixel that needs to go right.*/
+            stripe[j][i] += remr[j] + reml[j];
         }
         bound_pixel(stripe, i, remr);
 
         if (goleft) {
-            /* Split up energy from current pixel,
-             * so it propagates in both directions */
-            for (j = 0; j < 3; j++) {
-                reml[j] /= 2.0;
-                remr[j] += reml[j];
-            }
-
             /* Propagate energy left */
             for (k = i - 1; k >= 0; k--) {
                 for (j = 0; j < 3; j++) {

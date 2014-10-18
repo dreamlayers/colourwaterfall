@@ -123,7 +123,7 @@ static void sum_to_stripe(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
 
             pos = left_right[0][i] + left_right[1][i];
             if (pos > 0) {
-                pos = width * left_right[1][i] / pos;
+                pos = (width - 1) * left_right[1][i] / pos;
             }
             stripe[rgb][pos] += other[0] + other[1];
             stripe[1][pos] += green[0] + green[1];

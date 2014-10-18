@@ -269,12 +269,12 @@ static void peakify_stripe(double **stripe, unsigned int width) {
 #define pixel_bound (255.0*255.0/sqrt_mult/sqrt_mult)
 static bool bound_pixel(double **stripe, unsigned int index,
                         double *rem) {
+    int j;
     double max_col = stripe[0][index];
     if (stripe[1][index] > max_col) max_col = stripe[1][index];
     if (stripe[2][index] > max_col) max_col = stripe[2][index];
 
     if (max_col > pixel_bound) {
-        int j;
         max_col /= pixel_bound;
         for (j = 0; j < 3; j++) {
             rem[j] = stripe[j][index] * (1.0 - 1.0/max_col);
@@ -282,43 +282,45 @@ static bool bound_pixel(double **stripe, unsigned int index,
         }
         return true;
     } else {
+        for (j = 0; j < 3; j++) {
+            rem[j] = 0;
+        }
         return false;
     }
 }
 
 static void peakify_stripe(double **stripe, unsigned int width) {
     int i, j, k;
-    double rem[3], rem2[3];
+    double reml[3], remr[3] = { 0.0, 0.0, 0.0 };
 
     for (i = 0; i < width; i++) {
-        if (bound_pixel(stripe, i, rem)) {
+        bool goleft;
+
+        /* Only energy from current pixel is allowed to propagate left */
+        goleft = bound_pixel(stripe, i, reml);
+
+        /* Add energy that was propagating right,
+         * and only propagate remainder to the right */
+        for (j = 0; j < 3; j++) {
+            stripe[j][i] += remr[j];
+        }
+        bound_pixel(stripe, i, remr);
+
+        if (goleft) {
+            /* Split up energy from current pixel,
+             * so it propagates in both directions */
             for (j = 0; j < 3; j++) {
-                rem[j] /= 2;
-                rem2[j] = rem[j];
+                reml[j] /= 2.0;
+                remr[j] += reml[j];
             }
 
+            /* Propagate energy left */
             for (k = i - 1; k >= 0; k--) {
                 for (j = 0; j < 3; j++) {
-                    stripe[j][k] += rem[j];
+                    stripe[j][k] += reml[j];
                 }
-                if (!bound_pixel(stripe, k, rem)) break;
+                if (!bound_pixel(stripe, k, reml)) break;
             }
-
-#if 0
-            for (k = i + 1; k < width; k++) {
-                for (j = 0; j < 3; j++) {
-                    stripe[j][k] += rem2[j];
-                }
-                if (!bound_pixel(stripe, k, rem2)) break;
-            }
-#else
-            k = i + 1;
-            if (k < width) {
-                for (j = 0; j < 3; j++) {
-                    stripe[j][k] += rem2[j];
-                }
-            }
-#endif
         }
     }
 }

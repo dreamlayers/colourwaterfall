@@ -266,7 +266,8 @@ static void peakify_stripe(double **stripe, unsigned int width) {
 }
 #endif
 
-#define pixel_bound (255.0*255.0/sqrt_mult/sqrt_mult)
+//#define pixel_bound (255.0*255.0/sqrt_mult/sqrt_mult)
+#define pixel_bound (255.0)
 static bool bound_pixel(double **stripe, unsigned int index,
                         double *rem) {
     int j;
@@ -364,8 +365,8 @@ int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
 
     zero_stripe(stripe, width);
     sum_to_stripe(left_bins, right_bins, stripe, width);
-    peakify_stripe(stripe, width);
     sqrt_stripe(stripe, width);
+    peakify_stripe(stripe, width);
 #if 0
     rgbm_sumbins(bins, sums);
     sums[0] *= RGBM_REDSCALE;

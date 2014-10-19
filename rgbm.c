@@ -108,7 +108,7 @@ static void sum_to_stripe(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
      */
     for (rgb = 0; rgb < 3; rgb += 2) {
         for (; i < limit; i++) {
-            double green[2], other[2];
+            double green[2], other[2], total;
             int pos;
 
             for (lr = 0; lr <= 1; lr++) {
@@ -121,9 +121,17 @@ static void sum_to_stripe(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
                 other[lr] = bin - green[lr];
             }
 
-            pos = left_right[0][i] + left_right[1][i];
-            if (pos > 0) {
-                pos = (width - 1) * left_right[1][i] / pos;
+            /* This calculation needs non-negative bin values. */
+            total = left_right[0][i] + left_right[1][i];
+            if (total > 0) {
+                pos = (double)((width - 1) * left_right[1][i]) / total + 0.5;
+                if (pos >= width) {
+                    pos = width - 1;
+                } else if (pos < 0) {
+                    pos = 0;
+                }
+            } else {
+                pos = width / 2;
             }
             stripe[rgb][pos] += other[0] + other[1];
             stripe[1][pos] += green[0] + green[1];

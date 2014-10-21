@@ -3,3 +3,4 @@ greentab_audacious.h
 greentab_winamp.h
 *.o
 *.dll
+*.so

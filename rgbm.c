@@ -226,7 +226,7 @@ static int rgb_pwm2srgb(double n) {
     return t;
 }
 
-#define sqrt_mult (5.0)
+#define sqrt_mult (100000.0)
 static void sqrt_stripe(double **stripe, unsigned int width) {
     int i, j;
     for (i = 0; i < 3; i++) {

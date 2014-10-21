@@ -1,6 +1,4 @@
-PLATFORM := Windows
-CC := i686-w64-mingw32-gcc
-#include ../../build/Makefile.config
+PLATFORM := $(shell uname -o)
 
 CFLAGS := $(CFLAGS) -Wall $(shell sdl-config --cflags)
 LIBS := $(LIBS) $(shell sdl-config --libs)
@@ -8,6 +6,7 @@ SRCS := rgbm.c sdl_display.c
 
 ifeq ($(PLATFORM),Windows)
 
+CC := i686-w64-mingw32-gcc
 WINAMPAPI_DIR := .
 CFLAGS := $(CFLAGS) -DRGBM_WINAMP -I$(WINAMPAPI_DIR)
 SRCS := $(SRCS) rgbvis.c
@@ -19,12 +18,12 @@ rgbm.o: greentab_winamp.h
 
 else
 
-PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1
-CFLAGS := $(CFLAGS) -DRGBM_AUDACIOUS \
+PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1 sdl
+CFLAGS := $(CFLAGS) -g -fPIC -DRGBM_AUDACIOUS \
 		  $(shell pkg-config --cflags $(PKG_PREREQ)) $(PIC)
 LIBS = $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm
 SRCS := $(SRCS) aud_rgb.c
-TARGET := aud_rgb.so
+TARGET := aud_sdl_rgb.so
 
 .PHONY : install uninstall all
 

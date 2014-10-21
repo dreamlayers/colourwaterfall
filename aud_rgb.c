@@ -20,7 +20,7 @@ rgblamp_cleanup(void)
 static void
 rgblamp_render_freq(const gfloat *freq)
 {
-    rgbm_render(freq);
+    rgbm_render(freq, freq);
 }
 
 #if defined(__GNUC__) && __GNUC__ >= 4

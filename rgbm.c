@@ -445,12 +445,15 @@ int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
 } /* rgbm_render */
 
 #ifdef RGBM_FFT
+/* Convert FFTW halfcomplex format to real amplitudes.
+ * bins[0] and bins[RGBM_NUMSAMP / 2] are real due to FFT symmetry. */
 static void fft_complex_to_real(RGBM_BINTYPE bins[RGBM_NUMSAMP]) {
     int i;
-    for (i = 1; i < RGBM_NUMBINS; i++) {
-        bins[i] *= bins[i];
-        bins[i] += bins[RGBM_NUMSAMP-i] * bins[RGBM_NUMSAMP-i];
-        bins[i] = sqrt(bins[i]);
+    for (i = 1; i < RGBM_NUMSAMP / 2; i++) {
+        double t;
+        t = bins[i] * bins[i];
+        t += bins[RGBM_NUMSAMP - i] * bins[RGBM_NUMSAMP - i];
+        bins[i] = sqrt(t);
     }
 }
 

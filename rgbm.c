@@ -95,6 +95,7 @@ static int wrotepwm;
 #ifdef RGBM_FFT
 static fftw_plan fft_plan_l, fft_plan_r;
 static double *fft_in_l, *fft_in_r, *fft_out_l, *fft_out_r;
+static double hamming[RGBM_NUMSAMP];
 #endif
 #ifdef RGBM_LOGGING
 static double testsum[RGBM_USEBINS];
@@ -218,6 +219,10 @@ int rgbm_init(void) {
                                   fft_in_r, fft_out_r,
                                   FFTW_R2HC,
                                   FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+    for (i = 0; i < RGBM_NUMSAMP; i++) {
+        /* This has been scaled to maintain amplitude */
+        hamming[i] = 1 - 0.852 * cos(2 * M_PI * i / (RGBM_NUMSAMP - 1));
+    }
 #endif
 
     if (!display_init())
@@ -454,7 +459,16 @@ void rgbm_get_wave_buffers(double *left[], double *right[]) {
     *right = fft_in_r;
 }
 
+static void fft_apply_window(double *samp) {
+    int i;
+    for (i = 0; i < RGBM_NUMSAMP; i++) {
+      samp[i] *= hamming[i];
+    }
+}
+
 int rgbm_render_wave(void) {
+    fft_apply_window(fft_in_l);
+    fft_apply_window(fft_in_r);
     fftw_execute(fft_plan_l);
     fftw_execute(fft_plan_r);
     fft_complex_to_real(fft_out_l);

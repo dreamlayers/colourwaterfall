@@ -14,11 +14,9 @@ static void sdlError(const char *str)
     //exit(1);
 }
 
-static SDL_Surface *surface;
+static SDL_Surface *screen, *surface;
 
 bool display_init(void) {
-    SDL_Event event;
-
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         sdlError("initializing SDL");
         return false;
@@ -26,12 +24,21 @@ bool display_init(void) {
 
     //SDL_WM_SetCaption("Colour picker", "Colour picker");
 
-    surface = SDL_SetVideoMode(width, height, 24, 0);
+    screen = SDL_SetVideoMode(width, height, 0, SDL_HWSURFACE);
 
-    if (!surface) {
+    if (!screen) {
         sdlError("setting video mode");
         return false;
     }
+
+    surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, 1,
+                                   24, 0xff0000, 0x00ff00, 0x0000ff, 0);
+
+    if (!surface) {
+        sdlError("creating surface");
+        return false;
+    }
+
     return true;
 }
 
@@ -49,16 +56,23 @@ bool display_render(double *r, double *g, double *b) {
     int i;
     unsigned char *p;
 
-    SDL_BlitSurface(surface, &scroll_src, surface, &scroll_dest);
-    SDL_LockSurface(surface);
+    if SDL_MUSTLOCK(surface) {
+        SDL_LockSurface(surface);
+    }
     p = (unsigned char *)(surface->pixels);
     for (i = 0; i < width; i++) {
         *(p++) = clip_value(b[i]);
         *(p++) = clip_value(g[i]);
         *(p++) = clip_value(r[i]);
     }
-    SDL_UnlockSurface(surface);
-    SDL_UpdateRect(surface, 0, 0, width, height);
+    if SDL_MUSTLOCK(surface) {
+        SDL_UnlockSurface(surface);
+    }
+    SDL_UpdateRect(surface, 0, 0, width, 1);
+
+    SDL_BlitSurface(screen, &scroll_src, screen, &scroll_dest);
+    SDL_BlitSurface(surface, NULL, screen, NULL);
+    SDL_UpdateRect(screen, 0, 0, width, height);
     return true;
 }
 

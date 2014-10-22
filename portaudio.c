@@ -7,9 +7,12 @@
 #include <pthread.h>
 #include "rgbm.h"
 
+#define inputsize (RGBM_NUMSAMP * 2 / 3)
+
 static PaStream *stream = NULL;
 static double *left_samp = NULL, *right_samp = NULL;
-int16_t pcm[RGBM_NUMSAMP * 2];
+static double left_ring[RGBM_NUMSAMP], right_ring[RGBM_NUMSAMP];
+static int ring_write = 0;
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 static bool sound_available = false;
@@ -19,16 +22,29 @@ static void error(const char *s) {
     exit(-1);
 }
 
+static void sound_store(const int16_t *input) {
+    int i, outidx;
+
+    outidx = ring_write;
+    for (i = 0; i < inputsize; i++) {
+        left_samp[outidx] = input[i * 2] / 32768.0;
+        right_samp[outidx] = input[i * 2 + 1] / 32768.0;
+        outidx++;
+        if (outidx > RGBM_NUMSAMP) outidx = 0;
+    }
+    ring_write = outidx;
+}
+
 static int pa_callback(const void *input, void *output,
                        unsigned long frameCount,
                        const PaStreamCallbackTimeInfo *timeInfo,
                        PaStreamCallbackFlags statusFlags, void *userData) {
-    if (frameCount != RGBM_NUMSAMP) {
+    if (frameCount != inputsize) {
         error("callback got unexpected number of samples.");
     }
 
     pthread_mutex_lock(&mutex);
-    memcpy(pcm, input, sizeof(pcm));
+    sound_store((int16_t *)input);
     sound_available = true;
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
@@ -53,7 +69,7 @@ static void sound_open(void) {
                       &inputParameters,
                       NULL, //&outputParameters,
                       44100,
-                      RGBM_NUMSAMP,
+                      inputsize,
                       paClipOff,
                       pa_callback,
                       NULL); /* no callback userData */
@@ -83,17 +99,17 @@ static void sound_close(void) {
 }
 
 static void sound_retrieve(void) {
-    int i;
-
     pthread_mutex_lock(&mutex);
 
     while (!sound_available) {
         pthread_cond_wait(&cond, &mutex);
     }
 
-    for (i = 0; i < RGBM_NUMSAMP; i++) {
-        left_samp[i] = pcm[i * 2] / 32768.0;
-        right_samp[i] = pcm[i * 2 + 1] / 32768.0;
+    memcpy(left_samp, &left_ring[ring_write], RGBM_NUMSAMP - ring_write);
+    memcpy(right_samp, &right_ring[ring_write], RGBM_NUMSAMP - ring_write);
+    if (ring_write > 0) {
+        memcpy(&left_samp[RGBM_NUMSAMP - ring_write], left_ring, ring_write);
+        memcpy(&right_samp[RGBM_NUMSAMP - ring_write], right_ring, ring_write);
     }
 
     sound_available = false;

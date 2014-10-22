@@ -15,6 +15,9 @@
 
 #if defined(RGBM_AUDACIOUS)
 
+/* Audacious only gives mono frequency data, and this needs stereo. */
+#define RGBM_FFT
+
 #define RGBPORT "/dev/ttyUSB0"
 /* Calibrated in Audacious 3.4 in Ubuntu 13.10 */
 /* Frequency of bin is (i+1)*44100/512 (array starts with i=0).
@@ -77,6 +80,10 @@ static const double freq_adj[RGBM_USEBINS] = {
 #error Need to set define for type of music player.
 #endif
 
+#ifdef RGBM_FFT
+#include <fftw3.h>
+#endif
+
 /*
  * Static global variables
  */
@@ -85,6 +92,10 @@ static double binavg[3];
 /* Set after successful PWM write, and enables rgb_matchpwm afterwards */
 static int wrotepwm;
 
+#ifdef RGBM_FFT
+static fftw_plan fft_plan_l, fft_plan_r;
+static double *fft_in_l, *fft_in_r, *fft_out_l, *fft_out_r;
+#endif
 #ifdef RGBM_LOGGING
 static double testsum[RGBM_USEBINS];
 static unsigned int testctr;
@@ -140,6 +151,7 @@ static void sum_to_stripe(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
     }
 } /* rgbm_sumbins */
 
+#if 0
 static void rgbm_avgsums(const double sums[3],
                          double avg[3],
                          double scale,
@@ -160,6 +172,7 @@ static void rgbm_avgsums(const double sums[3],
         if (avg[i] > bound) avg[i] = bound;
     } /* for i */
 } /* rgbm_avgsums */
+#endif
 
 #ifdef RGBM_LOGGING
 static void rgbm_testsum(const RGBM_BINTYPE bins[RGBM_NUMBINS]) {
@@ -192,6 +205,21 @@ static void rgbm_testsum(const RGBM_BINTYPE bins[RGBM_NUMBINS]) {
 int rgbm_init(void) {
     int i;
 
+#ifdef RGBM_FFT
+    fft_in_l = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
+    fft_in_r = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
+    fft_out_l = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
+    fft_out_r = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
+    fft_plan_l = fftw_plan_r2r_1d(RGBM_NUMBINS,
+                                  fft_in_l, fft_out_l,
+                                  FFTW_R2HC,
+                                  FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+    fft_plan_r = fftw_plan_r2r_1d(RGBM_NUMBINS,
+                                  fft_in_r, fft_out_r,
+                                  FFTW_R2HC,
+                                  FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+#endif
+
     if (!display_init())
         return false;
 
@@ -207,11 +235,20 @@ int rgbm_init(void) {
 
 void rgbm_shutdown(void) {
     display_quit();
+#ifdef RGBM_FFT
+    fftw_destroy_plan(fft_plan_l);
+    fftw_destroy_plan(fft_plan_r);
+    fftw_free(fft_in_l);
+    fftw_free(fft_in_r);
+    fftw_free(fft_out_l);
+    fftw_free(fft_out_r);
+#endif
 #ifdef RGBM_LOGGING
     if (testlog != NULL) fclose(testlog);
 #endif
 }
 
+#if 0
 static int rgb_pwm2srgb(double n) {
     double r = n / 4095.0;
     int t;
@@ -225,8 +262,9 @@ static int rgb_pwm2srgb(double n) {
     else if (t < 0) t = 0;
     return t;
 }
+#endif
 
-#define sqrt_mult (100000.0)
+#define sqrt_mult (100.0)
 static void sqrt_stripe(double **stripe, unsigned int width) {
     int i, j;
     for (i = 0; i < 3; i++) {
@@ -400,3 +438,27 @@ int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
 //    res = rgb_pwm(binavg[0], binavg[1], binavg[2]);
  //   return res;
 } /* rgbm_render */
+
+#ifdef RGBM_FFT
+static void fft_complex_to_real(RGBM_BINTYPE bins[RGBM_NUMSAMP]) {
+    int i;
+    for (i = 1; i < RGBM_NUMBINS; i++) {
+        bins[i] *= bins[i];
+        bins[i] += bins[RGBM_NUMSAMP-i] * bins[RGBM_NUMSAMP-i];
+        bins[i] = sqrt(bins[i]);
+    }
+}
+
+void rgbm_get_wave_buffers(double *left[], double *right[]) {
+    *left = fft_in_l;
+    *right = fft_in_r;
+}
+
+int rgbm_render_wave(void) {
+    fftw_execute(fft_plan_l);
+    fftw_execute(fft_plan_r);
+    fft_complex_to_real(fft_out_l);
+    fft_complex_to_real(fft_out_r);
+    return rgbm_render(fft_out_l, fft_out_r);
+}
+#endif

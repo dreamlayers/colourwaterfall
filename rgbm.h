@@ -10,9 +10,11 @@ extern "C" {
 #if defined(RGBM_AUDACIOUS)
 
 /* Number of FFT bins */
+#define RGBM_NUMSAMP 512
 #define RGBM_NUMBINS 256
 /* Type of FFT bins */
-#define RGBM_BINTYPE float
+#define RGBM_BINTYPE double
+#define RGBM_SAMPTYPE double
 
 #elif defined (RGBM_WINAMP)
 
@@ -28,6 +30,8 @@ int rgbm_init(void);
 void rgbm_shutdown(void);
 int rgbm_render(const RGBM_BINTYPE left_bins[RGBM_NUMBINS],
                 const RGBM_BINTYPE right_bins[RGBM_NUMBINS]);
+void rgbm_get_wave_buffers(double *left[], double *right[]);
+int rgbm_render_wave(void);
 
 #ifdef __cplusplus
 }

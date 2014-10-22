@@ -21,7 +21,7 @@ else
 PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1 sdl
 CFLAGS := $(CFLAGS) -g -fPIC -DRGBM_AUDACIOUS \
 		  $(shell pkg-config --cflags $(PKG_PREREQ)) $(PIC)
-LIBS = $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm
+LIBS = $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm -lfftw3
 SRCS := $(SRCS) aud_rgb.c
 TARGET := aud_sdl_rgb.so
 

@@ -22,12 +22,17 @@ PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1 sdl
 CFLAGS := $(CFLAGS) -g -fPIC -DRGBM_AUDACIOUS \
 		  $(shell pkg-config --cflags $(PKG_PREREQ)) $(PIC)
 LIBS = $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm -lfftw3
+STANDALONE := colourwaterfall
+STANDALONE_SRCS = $(SRCS) portaudio.c
+STANDALONE_OBJS := $(STANDALONE_SRCS:%.c=%.o)
 SRCS := $(SRCS) aud_rgb.c
 TARGET := aud_sdl_rgb.so
-
 .PHONY : install uninstall all
 
-all: $(TARGET)
+all: $(TARGET) $(STANDALONE)
+
+$(STANDALONE): $(STANDALONE_OBJS)
+	$(CC) $(CFLAGS) $^ $(LIBS) -lportaudio -o $@
 
 install: $(TARGET)
 	cp $(TARGET) ~/.local/share/audacious/Plugins/

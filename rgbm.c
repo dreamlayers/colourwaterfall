@@ -13,10 +13,12 @@
 #include <stdio.h>
 #endif
 
-#if defined(RGBM_AUDACIOUS)
+#if defined(RGBM_AUDACIOUS) || defined(RGBM_FFT)
 
 /* Audacious only gives mono frequency data, and this needs stereo. */
+#ifndef RGBM_FFT
 #define RGBM_FFT
+#endif
 
 #define RGBPORT "/dev/ttyUSB0"
 /* Calibrated in Audacious 3.4 in Ubuntu 13.10 */

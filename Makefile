@@ -1,16 +1,20 @@
 PLATFORM := $(shell uname -o)
 
-CFLAGS := $(CFLAGS) -Wall $(shell sdl-config --cflags)
-LIBS := $(LIBS) $(shell sdl-config --libs)
+CFLAGS := $(CFLAGS) -Wall -O -g
 SRCS := rgbm.c sdl_display.c
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(PLATFORM),Cygwin)
 
 CC := i686-w64-mingw32-gcc
 WINAMPAPI_DIR := .
-CFLAGS := $(CFLAGS) -DRGBM_WINAMP -I$(WINAMPAPI_DIR)
+CFLAGS := $(CFLAGS) -I/usr/local/cross-tools/i686-w64-mingw32/include \
+          $(shell sdl-config --cflags) \
+          -DRGBM_WINAMP -DRGBM_FFT -I$(WINAMPAPI_DIR)
 SRCS := $(SRCS) rgbvis.c
+LDFLAGS :=
+LIBS := $(shell sdl-config --libs)  -lpthread -lm -lfftw3
 TARGET := vis_sdl_rgb.dll
+STANDALONE := colourwaterfall.exe
 
 all: $(TARGET)
 
@@ -21,18 +25,13 @@ else
 PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1 sdl
 CFLAGS := $(CFLAGS) -g -fPIC -DRGBM_AUDACIOUS \
 		  $(shell pkg-config --cflags $(PKG_PREREQ)) $(PIC)
-LIBS = $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm -lfftw3
-STANDALONE := colourwaterfall
-STANDALONE_SRCS = $(SRCS) portaudio.c
-STANDALONE_OBJS := $(STANDALONE_SRCS:%.c=%.o)
 SRCS := $(SRCS) aud_rgb.c
+LDFLAGS :=
+LIBS := $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm -lfftw3
 TARGET := aud_sdl_rgb.so
+STANDALONE := colourwaterfall
+
 .PHONY : install uninstall all
-
-all: $(TARGET) $(STANDALONE)
-
-$(STANDALONE): $(STANDALONE_OBJS)
-	$(CC) $(CFLAGS) $^ $(LIBS) -lportaudio -o $@
 
 install: $(TARGET)
 	cp $(TARGET) ~/.local/share/audacious/Plugins/
@@ -44,7 +43,13 @@ rgbm.o: greentab_audacious.h freqadj_audacious.h
 
 endif
 
-CFLAGS := $(CFLAGS)
+STANDALONE_SRCS = $(SRCS) portaudio.c
+STANDALONE_OBJS := $(STANDALONE_SRCS:%.c=%.o)
+
+all: $(TARGET) $(STANDALONE)
+
+$(STANDALONE): $(STANDALONE_OBJS)
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LIBS) -lportaudio -o $@
 
 OBJS := $(SRCS:%.c=%.o)
 

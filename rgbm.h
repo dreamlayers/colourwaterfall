@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#if defined(RGBM_AUDACIOUS)
+#if defined(RGBM_AUDACIOUS) || defined(RGBM_FFT)
 
 /* Number of FFT bins */
 #define RGBM_NUMSAMP 512

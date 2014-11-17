@@ -11,9 +11,9 @@ CFLAGS := $(CFLAGS) -I/usr/local/cross-tools/i686-w64-mingw32/include \
           $(shell sdl-config --cflags) \
           -DRGBM_WINAMP -DRGBM_FFT -I$(WINAMPAPI_DIR)
 SRCS := $(SRCS) rgbvis.c
-LDFLAGS :=
+LDFLAGS := -static-libgcc
 LIBS := $(shell sdl-config --libs)  -lpthread -lm -lfftw3
-TARGET := vis_sdl_rgb.dll
+TARGET := vis_colourwaterfall.dll
 STANDALONE := colourwaterfall.exe
 
 all: $(TARGET)
@@ -55,7 +55,7 @@ OBJS := $(SRCS:%.c=%.o)
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -shared -Wl,--no-undefined \
-	-Wl,--exclude-libs,ALL $^ $(LIBS) -o $@
+	-Wl,--exclude-libs,ALL $^ $(LDFLAGS) $(LIBS) -o $@
 
 .PHONY : clean veryclean
 clean:

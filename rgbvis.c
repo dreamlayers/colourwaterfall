@@ -10,17 +10,22 @@
 
 /***** Winamp module functions *****/
 
+/* const not present due to Winamp API */
+static char title[] = "Colour Waterfall";
+
 static void config(struct MODULETYPE *this_mod) {
-    MessageBox(this_mod->hwndParent,"This module is Copyright(C) 2011, Boris Gjenero\n",
-                                    "Configuration",MB_OK);
+    MessageBox(this_mod->hwndParent,
+               "This module is Copyright 2014, Boris Gjenero\n",
+               title, MB_OK);
 }
 
 static int init(struct MODULETYPE *this_mod) {
     if (rgbm_init()) {
         return 0;
     } else {
-        MessageBox(this_mod->hwndParent,"Cannot connect to lamp\n",
-                                        "RGB Lamp Visualization",MB_OK);
+        MessageBox(this_mod->hwndParent,
+                   "Cannot initialize visualization", title,
+                   MB_ICONSTOP | MB_OK);
         return 1;
     }
 }
@@ -40,7 +45,7 @@ static int render(struct winampVisModule *this_mod) {
 
 // third module (VU meter)
 static winampVisModule mod = {
-    "VU Meter",
+    title,
     NULL,   // hwndParent
     NULL,   // hDllInstance
     0,      // sRate
@@ -65,7 +70,7 @@ static MODULETYPE *getModule(int which) {
 }
 
 // Module header, includes version, description, and address of the module retriever function
-static winampVisHeader hdr = { VIS_HDRVER, "RGB Lamp Visualization", getModule };
+static winampVisHeader hdr = { VIS_HDRVER, title, getModule };
 
 #ifdef __cplusplus
 extern "C" {

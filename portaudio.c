@@ -11,6 +11,11 @@
 
 static PaStream *stream = NULL;
 static double *left_samp = NULL, *right_samp = NULL;
+/* Each ring contains enough samples for one output block. Input block
+ * size must be smaller or equal to output block size. Input samples 
+ * are added at ring_write, wrapping around the rings. They are copied
+ * from there to the output buffers, forming un-wrapped output blocks.
+ */
 static double left_ring[RGBM_NUMSAMP], right_ring[RGBM_NUMSAMP];
 static int ring_write = 0;
 pthread_mutex_t mutex;
@@ -27,10 +32,10 @@ static void sound_store(const int16_t *input) {
 
     outidx = ring_write;
     for (i = 0; i < inputsize; i++) {
-        left_samp[outidx] = input[i * 2] / 32768.0;
-        right_samp[outidx] = input[i * 2 + 1] / 32768.0;
+        left_ring[outidx] = input[i * 2] / 32768.0;
+        right_ring[outidx] = input[i * 2 + 1] / 32768.0;
         outidx++;
-        if (outidx > RGBM_NUMSAMP) outidx = 0;
+        if (outidx >= RGBM_NUMSAMP) outidx = 0;
     }
     ring_write = outidx;
 }
@@ -105,11 +110,16 @@ static void sound_retrieve(void) {
         pthread_cond_wait(&cond, &mutex);
     }
 
-    memcpy(left_samp, &left_ring[ring_write], RGBM_NUMSAMP - ring_write);
-    memcpy(right_samp, &right_ring[ring_write], RGBM_NUMSAMP - ring_write);
+    memcpy(&left_samp[0], &left_ring[ring_write],
+           sizeof(double) * (RGBM_NUMSAMP - ring_write));
+    memcpy(&right_samp[0], &right_ring[ring_write],
+           sizeof(double) * (RGBM_NUMSAMP - ring_write));
     if (ring_write > 0) {
-        memcpy(&left_samp[RGBM_NUMSAMP - ring_write], left_ring, ring_write);
-        memcpy(&right_samp[RGBM_NUMSAMP - ring_write], right_ring, ring_write);
+        /* Samples are wrapped around the ring. Copy the second part. */
+        memcpy(&left_samp[RGBM_NUMSAMP - ring_write], &left_ring[0],
+               sizeof(double) * ring_write);
+        memcpy(&right_samp[RGBM_NUMSAMP - ring_write], &right_ring[0],
+               sizeof(double) * ring_write);
     }
 
     sound_available = false;

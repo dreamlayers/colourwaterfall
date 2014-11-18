@@ -16,7 +16,7 @@ LIBS := $(shell sdl-config --libs)  -lpthread -lm -lfftw3
 TARGET := vis_colourwaterfall.dll
 STANDALONE := colourwaterfall.exe
 
-all: $(TARGET)
+all: $(TARGET) $(STANDALONE)
 
 rgbm.o: greentab_winamp.h
 
@@ -33,6 +33,8 @@ STANDALONE := colourwaterfall
 
 .PHONY : install uninstall all
 
+all: $(TARGET) $(STANDALONE)
+
 install: $(TARGET)
 	cp $(TARGET) ~/.local/share/audacious/Plugins/
 
@@ -46,8 +48,6 @@ endif
 STANDALONE_SRCS = $(SRCS) portaudio.c
 STANDALONE_OBJS := $(STANDALONE_SRCS:%.c=%.o)
 
-all: $(TARGET) $(STANDALONE)
-
 $(STANDALONE): $(STANDALONE_OBJS)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LIBS) -lportaudio -o $@
 
@@ -59,7 +59,7 @@ $(TARGET): $(OBJS)
 
 .PHONY : clean veryclean
 clean:
-	rm -f $(OBJS) $(TARGET) *~ *.bak
+	rm -f $(STANDALONE_OBJS) $(TARGET) $(STANDALONE) *~ *.bak
 
 veryclean: clean
 	rm -f freqadj_audacious.h greentab_audacious.h greentab_winamp.h

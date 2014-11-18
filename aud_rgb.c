@@ -63,7 +63,7 @@ static void rgblamp_render_multi_pcm(const float * pcm, int channels)
 #endif
 
 AUD_VIS_PLUGIN(
-    .name = "RGB Lamp",
+    .name = "Colour waterfall",
     .init = rgblamp_init,
     .cleanup = rgblamp_cleanup,
     //.about = aosd_about,

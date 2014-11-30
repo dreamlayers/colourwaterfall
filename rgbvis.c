@@ -3,9 +3,11 @@
 
 #define __W32API_USE_DLLIMPORT__
 #define WIN32_LEAN_AND_MEAN
+#include <stdint.h>
 #include <windows.h>
 #include "vis.h"
 #include "rgbm.h"
+#include "../gen_vishelper/vishelp.h"
 #define MODULETYPE winampVisModule
 
 /***** Winamp module functions *****/
@@ -19,7 +21,37 @@ static void config(struct MODULETYPE *this_mod) {
                title, MB_OK);
 }
 
+#ifdef RGBM_FFT
+visHelperAPI *vishelper_api = NULL;
+
+static int find_helper(void) {
+    HMODULE vishelper;
+    visHelperAPIGetter api_getter;
+
+    vishelper = GetModuleHandle("gen_vishelper.dll");
+    if (vishelper == NULL) return 0;
+
+    api_getter = (visHelperAPIGetter)GetProcAddress(vishelper,
+                                                    "getVisHelperAPI");
+    if (api_getter == NULL) return 0;
+    vishelper_api = api_getter();
+    if (vishelper_api == NULL || vishelper_api->version != 0) return 0;
+    if (!vishelper_api->start()) return 0;
+
+    return 1;
+}
+#endif
+
 static int init(struct MODULETYPE *this_mod) {
+#ifdef RGBM_FFT
+    if (!find_helper()) {
+        MessageBox(this_mod->hwndParent,
+                   "Cannot find visualization helper", title,
+                   MB_ICONSTOP | MB_OK);
+        return 1;
+    }
+#endif
+
     if (rgbm_init()) {
         return 0;
     } else {
@@ -32,12 +64,35 @@ static int init(struct MODULETYPE *this_mod) {
 
 static void quit(struct MODULETYPE *this_mod) {
     rgbm_shutdown();
+#ifdef RGBM_FFT
+    vishelper_api->stop();
+#endif
 }
+
+#ifdef RGBM_FFT
+static void copy_data(const int16_t *input) {
+    int i;
+    double *left, *right;
+    rgbm_get_wave_buffers(&left, &right);
+
+    for (i = 0; i < RGBM_NUMSAMP; i++) {
+        left[i] = input[i * 2] / 32768.0;
+        right[i] = input[i * 2 + 1] / 32768.0;
+    }
+}
+#endif
 
 static int render(struct winampVisModule *this_mod) {
     int noerror;
+#ifdef RGBM_FFT
+    int16_t *data = (int16_t *)vishelper_api->get_raw_data(RGBM_NUMSAMP * 4);
+    if (data == NULL) return 1;
+    copy_data(data);
+    noerror = rgbm_render_wave();
+#else
     noerror = rgbm_render(this_mod->spectrumData[0], 
                           this_mod->spectrumData[1]);
+#endif
     return noerror ? 0 : 1;
 }
 

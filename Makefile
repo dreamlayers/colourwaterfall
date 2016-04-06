@@ -14,6 +14,7 @@ SRCS := $(SRCS) rgbvis.c
 LDFLAGS := -static-libgcc
 LIBS := $(shell sdl-config --libs)  -lpthread -lm -lfftw3
 TARGET := vis_colourwaterfall.dll
+PLUGLINK := $(CC) $(CFLAGS)
 STANDALONE := colourwaterfall.exe
 
 all: $(TARGET) $(STANDALONE)
@@ -25,10 +26,13 @@ else
 PKG_PREREQ := audacious glib-2.0 dbus-glib-1 dbus-1 sdl
 CFLAGS := $(CFLAGS) -g -fPIC -DRGBM_AUDACIOUS \
 		  $(shell pkg-config --cflags $(PKG_PREREQ)) $(PIC)
-SRCS := $(SRCS) aud_rgb.c
+CXXFLAGS := $(CFLAGS) -std=c++11
+STANDALONE_SRCS := $(SRCS) portaudio.c
+SRCS := $(SRCS) aud_rgb.cc
 LDFLAGS :=
 LIBS := $(shell pkg-config --libs $(PKG_PREREQ)) -lpthread -lm -lfftw3
 TARGET := aud_sdl_rgb.so
+PLUGLINK := $(CXX) $(CXXFLAGS)
 STANDALONE := colourwaterfall
 
 .PHONY : install uninstall all
@@ -45,16 +49,16 @@ rgbm.o: greentab_audacious.h freqadj_audacious.h
 
 endif
 
-STANDALONE_SRCS = $(SRCS) portaudio.c
 STANDALONE_OBJS := $(STANDALONE_SRCS:%.c=%.o)
 
 $(STANDALONE): $(STANDALONE_OBJS)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LIBS) -lportaudio -o $@
 
 OBJS := $(SRCS:%.c=%.o)
+OBJS := $(OBJS:%.cc=%.o)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -shared -Wl,--no-undefined \
+	$(PLUGLINK) -shared -Wl,--no-undefined \
 	-Wl,--exclude-libs,ALL $^ $(LDFLAGS) $(LIBS) -o $@
 
 .PHONY : clean veryclean
@@ -66,7 +70,7 @@ veryclean: clean
 
 rgbvis.o: rgbvis.c $(WINAMPAPI_DIR)/vis.h rgbm.h Makefile
 
-aud_rgb.o: aud_rgb.c rgbm.h Makefile
+aud_rgb.o: aud_rgb.cc rgbm.h Makefile
 
 rgbm.o: rgbm.c rgbm.h Makefile
 

@@ -59,7 +59,11 @@ void RGBWaterfall::render_multi_pcm(const float * pcm, int channels)
         return;
     }
 
-    rgbm_render_wave();
+    if (!rgbm_render_wave()) {
+        /* There should be a better way to get current plugin handle. */
+        PluginHandle *ph = aud_plugin_lookup_basename("aud_sdl_rgb");
+        if (ph) aud_plugin_enable(ph, false);
+    }
 }
 
 void RGBWaterfall::clear(void)

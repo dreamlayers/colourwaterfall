@@ -6,13 +6,16 @@ SRCS := rgbm.c sdl_display.c
 ifeq ($(PLATFORM),Cygwin)
 
 CC := i686-w64-mingw32-gcc
+PKG_PREREQ := sdl portaudio-2.0
 WINAMPAPI_DIR := .
-CFLAGS := $(CFLAGS) -I/usr/local/cross-tools/i686-w64-mingw32/include \
-          $(shell sdl-config --cflags) \
+CFLAGS := $(CFLAGS) \
+          $(shell i686-w64-mingw32-pkg-config --cflags $(PKG_PREREQ)) \
           -DRGBM_WINAMP -DRGBM_FFT -I$(WINAMPAPI_DIR)
+STANDALONE_SRCS := $(SRCS) portaudio.c
 SRCS := $(SRCS) rgbvis.c
-LDFLAGS := -static-libgcc
-LIBS := $(shell sdl-config --libs)  -lpthread -lm -lfftw3
+LDFLAGS := -static
+LIBS := $(shell i686-w64-mingw32-pkg-config --static --libs $(PKG_PREREQ)) \
+        -lpthread -lm -lfftw3
 TARGET := vis_colourwaterfall.dll
 PLUGLINK := $(CC) $(CFLAGS)
 STANDALONE := colourwaterfall.exe

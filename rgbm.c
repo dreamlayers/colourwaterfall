@@ -213,11 +213,11 @@ int rgbm_init(void) {
     fft_in_r = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
     fft_out_l = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
     fft_out_r = (double *)fftw_malloc(sizeof(double) * RGBM_NUMSAMP);
-    fft_plan_l = fftw_plan_r2r_1d(RGBM_NUMBINS,
+    fft_plan_l = fftw_plan_r2r_1d(RGBM_NUMSAMP,
                                   fft_in_l, fft_out_l,
                                   FFTW_R2HC,
                                   FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
-    fft_plan_r = fftw_plan_r2r_1d(RGBM_NUMBINS,
+    fft_plan_r = fftw_plan_r2r_1d(RGBM_NUMSAMP,
                                   fft_in_r, fft_out_r,
                                   FFTW_R2HC,
                                   FFTW_ESTIMATE | FFTW_DESTROY_INPUT);

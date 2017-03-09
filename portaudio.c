@@ -9,6 +9,13 @@
 
 #define inputsize (RGBM_NUMSAMP * 2 / 3)
 
+/* Default sound device, for visualizing playback from other programs */
+#ifdef WIN32
+#define MONITOR_NAME "Stereo Mix"
+#else
+#define MONITOR_NAME "pulse_monitor"
+#endif
+
 static PaStream *stream = NULL;
 static double *left_samp = NULL, *right_samp = NULL;
 /* Each ring contains enough samples for one output block. Input block
@@ -57,14 +64,56 @@ static int pa_callback(const void *input, void *output,
     return paContinue;
 }
 
-static void sound_open(void) {
+static void sound_open(const char *devname) {
     PaError err;
+    PaStreamParameters inputParameters;
+    PaDeviceIndex numDevices;
+#ifdef WIN32
+    unsigned int namelen;
+#endif
 
     err = Pa_Initialize();
     if(err != paNoError) error("initializing PortAudio.");
 
-    PaStreamParameters inputParameters;
-    inputParameters.device = Pa_GetDefaultInputDevice();
+    if ((devname == NULL) ?
+#ifdef WIN32
+        0
+#else
+        /* PULSE_SOURCE sets default input device. Don't automatically
+           over-ride that with our monitor name guess. */
+        (getenv("PULSE_SOURCE") != NULL)
+#endif
+        /* Use "default" to explicitly select default sound source.
+           Needed because otherwise MONITOR_NAME would be used. */
+        : (!strcmp(devname, "default"))) {
+        inputParameters.device = Pa_GetDefaultInputDevice();
+    } else {
+        if (devname == NULL) devname = MONITOR_NAME;
+
+        /* Search through devices to find one matching devname */
+        numDevices = Pa_GetDeviceCount();
+#ifdef WIN32
+        namelen = strlen(devname);
+#endif
+        for (inputParameters.device = 0; inputParameters.device < numDevices;
+             inputParameters.device++) {
+            const PaDeviceInfo *deviceInfo = Pa_GetDeviceInfo(inputParameters.device);
+            if (deviceInfo != NULL && deviceInfo->name != NULL &&
+#ifdef WIN32
+                /* Allow substring matches, for eg. "Stereo Mix (Sound card name)" */
+                !strncmp(deviceInfo->name, devname, namelen)
+#else
+                !strcmp(deviceInfo->name, devname)
+#endif
+                ) break;
+        }
+        if (inputParameters.device == numDevices) {
+            fprintf(stderr, "Warning: couldn't find %s sound device, using default\n",
+                    devname);
+            inputParameters.device = Pa_GetDefaultInputDevice();
+        }
+    }
+
     inputParameters.channelCount = 2;
     inputParameters.sampleFormat = paInt16; /* PortAudio uses CPU endianness. */
     inputParameters.suggestedLatency =
@@ -132,13 +181,22 @@ static void sound_visualize(void) {
     } while (rgbm_render_wave());
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    char *snddev = NULL;
+
+    if (argc == 2) {
+        snddev = argv[1];
+    } else if (argc != 1) {
+        fprintf(stderr, "Usage: %s [sound device]\n", argv[0]);
+        return -1;
+    }
+
     if (!rgbm_init()) {
         error("initializing visualization");
     }
     rgbm_get_wave_buffers(&left_samp, &right_samp);
 
-    sound_open();
+    sound_open(snddev);
 
     sound_visualize();
 

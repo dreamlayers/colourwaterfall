@@ -11,7 +11,7 @@ static void sdlError(const char *str)
 {
     fprintf(stderr, "Error %s\n", str);
     fprintf(stderr,"(reason for error: %s)\n", SDL_GetError());
-    //exit(1);
+    exit(1);
 }
 
 static SDL_Surface *screen, *surface;
@@ -22,7 +22,8 @@ bool display_init(void) {
         return false;
     }
 
-    //SDL_WM_SetCaption("Colour picker", "Colour picker");
+    SDL_WM_SetCaption("Colour waterfall visualization",
+                      "Colour waterfall visualization");
 
     screen = SDL_SetVideoMode(width, height, 0, SDL_HWSURFACE);
 

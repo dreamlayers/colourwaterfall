@@ -66,7 +66,7 @@ $(TARGET): $(OBJS)
 
 .PHONY : clean veryclean
 clean:
-	rm -f $(STANDALONE_OBJS) $(TARGET) $(STANDALONE) *~ *.bak
+	rm -f $(OBJS) $(STANDALONE_OBJS) $(TARGET) $(STANDALONE) *~ *.bak
 
 veryclean: clean
 	rm -f freqadj_audacious.h greentab_audacious.h greentab_winamp.h

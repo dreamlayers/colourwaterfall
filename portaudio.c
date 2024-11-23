@@ -5,6 +5,10 @@
 #include <string.h>
 #include <portaudio.h>
 #include <pthread.h>
+#ifdef __linux__
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 #include "rgbm.h"
 
 #define inputsize (RGBM_NUMSAMP * 2 / 3)
@@ -71,8 +75,30 @@ static void sound_open(const char *devname) {
 #ifdef WIN32
     unsigned int namelen;
 #endif
+#ifdef __linux__
+    int oldstderr;
 
+    /* Send useless ALSA stderr output to /dev/null */
+    oldstderr = dup(2);
+    if (oldstderr >= 0) {
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, 2);
+            close(devnull);
+        } else {
+            close(oldstderr);
+            oldstderr = -1;
+        }
+    }
+#endif
     err = Pa_Initialize();
+#ifdef __linux__
+    if (oldstderr >= 0) {
+        /* dup2 will also close 2 before replacing it */
+        dup2(oldstderr, 2);
+        close(oldstderr);
+    }
+#endif
     if(err != paNoError) error("initializing PortAudio.");
 
     if ((devname == NULL) ?

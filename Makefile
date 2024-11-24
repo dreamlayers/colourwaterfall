@@ -82,8 +82,8 @@ sdl_display.o: sdl_display.c display.h
 freqadj_audacious.h: makefreqadj.m
 	octave -q $^
 
-greentab_audacious.h: makeramps.rb
-	ruby makeramps.rb 144 1 512 > $@
+greentab_audacious.h: makeramps.py
+	python3 $^ 144 1 512 > $@
 
-greentab_winamp.h: makeramps.rb
-	ruby makeramps.rb 291 -1 1024 > $@
+greentab_winamp.h: makeramps.py
+	python3 $^ 291 -1 1024 > $@
